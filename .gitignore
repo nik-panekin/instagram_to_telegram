@@ -4,3 +4,4 @@ logs/
 tmp/
 venv/
 cookies.dat
+*.bak
