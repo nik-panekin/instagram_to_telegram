@@ -1,0 +1,6 @@
+__pycache__/
+_dev/
+logs/
+tmp/
+venv/
+cookies.dat
