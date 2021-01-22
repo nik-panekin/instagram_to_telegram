@@ -23,7 +23,7 @@ import telebot
 from telebot.types import InputMediaPhoto, InputMediaVideo
 
 from config_loader import (BOT_TOKEN, TEMP_FOLDER, INSTAGRAM_USER_NAMES,
-                           TELEGRAM_CHAT_ID, INCLUDE_LINK, REQUEST_TIMEOUT,
+                           TELEGRAM_CHAT_IDS, INCLUDE_LINK, REQUEST_TIMEOUT,
                            SEND_MESSAGE_DELAY, MAX_CAPTION_LENGTH,
                            CAPTION_TAIL, SCRAPE_PERIOD)
 import scraper
@@ -58,7 +58,7 @@ def get_latest_media_file(path: str) -> str:
 def get_media_shortcode(file_path: str) -> str:
     return os.path.basename(file_path).split('.')[0]
 
-def cleanup():
+def cleanup(complete=False):
     try:
         for username in INSTAGRAM_USER_NAMES:
             user_dir = get_user_dir(username)
@@ -70,6 +70,9 @@ def cleanup():
             if file_list:
                 file_to_skip = file_list[0]
             else:
+                file_to_skip = ''
+
+            if complete:
                 file_to_skip = ''
 
             for filename in os.listdir(user_dir):
@@ -91,6 +94,7 @@ def scrape_medias(test=False) -> list:
     """Структура данных для хранения медиа представляет собой список словарей:
     [
         {
+            'username': str - имя пользователя-владельца медиазаписи Instagram;
             'shortcode': str - строковый идентификатор медиазаписи Instagram;
             'caption': str - текст, относящийся к медиа;
             'files': [str,...] - список путей к скачанным файлам медиа;
@@ -98,7 +102,10 @@ def scrape_medias(test=False) -> list:
         ... ... ...
     ]
     """
-    cleanup()
+    if test:
+        cleanup(complete=True)
+    else:
+        cleanup()
 
     latest_files = {}
     for username in INSTAGRAM_USER_NAMES:
@@ -115,7 +122,9 @@ def scrape_medias(test=False) -> list:
         items = []
         file_list = get_media_file_list(get_user_dir(username))
         for file_path in file_list:
-            if file_path == latest_files[username] and not test:
+            # if file_path == latest_files[username] and not test:
+            #     break
+            if file_path == latest_files[username]:
                 break
 
             shortcode = get_media_shortcode(file_path)
@@ -126,7 +135,8 @@ def scrape_medias(test=False) -> list:
                     item['files'].append(file_path)
                     break
             if not found:
-                items.append({'shortcode': shortcode,
+                items.append({'username': username,
+                              'shortcode': shortcode,
                               'caption': '',
                               'files': [file_path]})
 
@@ -158,48 +168,60 @@ def scrape_medias(test=False) -> list:
 
     return medias
 
-def send_media_group(media: list):
-    try:
-        bot.send_media_group(TELEGRAM_CHAT_ID, media, timeout=REQUEST_TIMEOUT)
-    except Exception as e:
-        logging.error('Не удалось переслать альбом в Telegram. ' + str(e))
-    else:
-        logging.info('Отправлено в Telegram: альбом.')
-        time.sleep(SEND_MESSAGE_DELAY)
+def send_media_group(media: list, instagram_username: str):
+    for chat_id in TELEGRAM_CHAT_IDS[instagram_username]:
+        try:
+            # Необходимо делать сброс позиции чтения файлов на каждой итерации
+            for media_item in media:
+                media_item.media.seek(0)
+            bot.send_media_group(chat_id, media, timeout=REQUEST_TIMEOUT)
+        except Exception as e:
+            logging.error('Не удалось переслать альбом в Telegram. ' + str(e))
+        else:
+            logging.info('Отправлено в Telegram: альбом.')
+            time.sleep(SEND_MESSAGE_DELAY)
 
-def send_photo(photo, caption: str):
+def send_photo(photo, caption: str, instagram_username: str):
     if isinstance(photo, str):
         try:
             photo = open(photo, 'rb')
         except Exception as e:
             logging.error('Не удалось открыть файл с фото. ' + str(e))
             return
-    try:
-        bot.send_photo(TELEGRAM_CHAT_ID, photo, caption=caption,
-                       timeout=REQUEST_TIMEOUT)
-    except Exception as e:
-        logging.error(
-            'Не удалось переслать фото в Telegram. ' + str(e))
-    else:
-        logging.info('Отправлено в Telegram: фото.')
-        time.sleep(SEND_MESSAGE_DELAY)
 
-def send_video(video, caption: str):
+    for chat_id in TELEGRAM_CHAT_IDS[instagram_username]:
+        try:
+            # Сброс позиции чтения файла с фото
+            photo.seek(0)
+            bot.send_photo(chat_id, photo, caption=caption,
+                           timeout=REQUEST_TIMEOUT)
+        except Exception as e:
+            logging.error(
+                'Не удалось переслать фото в Telegram. ' + str(e))
+        else:
+            logging.info('Отправлено в Telegram: фото.')
+            time.sleep(SEND_MESSAGE_DELAY)
+
+def send_video(video, caption: str, instagram_username: str):
     if isinstance(video, str):
         try:
             video = open(video, 'rb')
         except Exception as e:
             logging.error('Не удалось открыть файл с видео. ' + str(e))
             return
-    try:
-        bot.send_video(TELEGRAM_CHAT_ID, video, caption=caption,
-                       timeout=REQUEST_TIMEOUT)
-    except Exception as e:
-        logging.error(
-            'Не удалось переслать видео в Telegram. ' + str(e))
-    else:
-        logging.info('Отправлено в Telegram: видео.')
-        time.sleep(SEND_MESSAGE_DELAY)
+
+    for chat_id in TELEGRAM_CHAT_IDS[instagram_username]:
+        try:
+            # Сброс позиции чтения файла с видео
+            video.seek(0)
+            bot.send_video(chat_id, video, caption=caption,
+                           timeout=REQUEST_TIMEOUT)
+        except Exception as e:
+            logging.error(
+                'Не удалось переслать видео в Telegram. ' + str(e))
+        else:
+            logging.info('Отправлено в Telegram: видео.')
+            time.sleep(SEND_MESSAGE_DELAY)
 
 def aggregate_to_telegram():
     logging.info('Инициирован процесс скрейпинга Instagram.')
@@ -255,20 +277,25 @@ def aggregate_to_telegram():
                                                      caption=actual_caption)
                     media_items.append(media_item)
 
-                send_media_group(media_items)
+                send_media_group(media_items,
+                                 instagram_username=media['username'])
             elif len(ok_files) == 1:
                 if get_media_type(ok_files[0].name) == 'photo':
-                    send_photo(ok_files[0], caption=caption)
+                    send_photo(ok_files[0], caption=caption,
+                               instagram_username=media['username'])
                 else:
-                    send_video(ok_files[0], caption=caption)
+                    send_video(ok_files[0], caption=caption,
+                               instagram_username=media['username'])
             else:
                 logging.error('Не удалось открыть ни одного медиафайла.')
 
         elif len(media['files']) == 1:
             if get_media_type(media['files'][0]) == 'photo':
-                send_photo(media['files'][0], caption=caption)
+                send_photo(media['files'][0], caption=caption,
+                           instagram_username=media['username'])
             else:
-                send_video(media['files'][0], caption=caption)
+                send_video(media['files'][0], caption=caption,
+                           instagram_username=media['username'])
 
         else:
             logging.error('Нет записей о прикреплённых файлах.')

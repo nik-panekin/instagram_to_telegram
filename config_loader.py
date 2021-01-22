@@ -2,6 +2,7 @@
 файла и выполняется инициализация подсистемы ведения журнала ошибок (logging).
 """
 import os
+import sys
 import logging
 import logging.handlers
 from configparser import ConfigParser
@@ -72,19 +73,45 @@ if os.path.exists(LOG_FOLDER):
 parser = ConfigParser()
 parser.read(CONFIG_NAME, encoding='utf-8')
 
-try:
-    # API TOKEN бота (получают у @BotFather)
-    BOT_TOKEN = parser.get('credentials', 'token')
-
-    # Названия аккаунтов пользователей Instagram для мониторинга
-    INSTAGRAM_USER_NAMES = parser.get('general', 'usernames').split(',')
-
-    # Идентификатор канала Telegram для пересылки извлечённой информации
-    TELEGRAM_CHAT_ID = parser.get('general', 'channel_id')
-except Exception as e:
-    logging.error('Не удалось загрузить базовые настройки. '
-                  'Работа программы завершается.')
+# API TOKEN бота (получают у @BotFather)
+BOT_TOKEN = parser.get('credentials', 'token', fallback=None)
+if not BOT_TOKEN:
+    logging.error('Ошибка в файле конфигурации: не удалось получить значение '
+                  'API TOKEN бота. Работа программы завершается.')
     sys.exit()
+
+# Словарь, ключи которого - названия аккаунтов пользователей Instagram для
+# мониторинга, а значения - списки идентификаторов каналов Telegram для
+# пересылки извлечённой информации
+TELEGRAM_CHAT_IDS = {}
+
+for section_name in parser.sections():
+    name_parts = section_name.split(':')
+    if name_parts[0] == 'instagram':
+        if len(name_parts) < 2 or len(name_parts[1]) == 0:
+            logging.error(
+                'Ошибка в файле конфигурации: неверный формат для имени '
+                'пользователя Instagram. Работа программы завершается.')
+            sys.exit()
+
+        channel_ids = parser.get(section_name, 'telegram_channels',
+                                 fallback=None)
+        if channel_ids:
+            TELEGRAM_CHAT_IDS[name_parts[1]] = channel_ids.split(',')
+        else:
+            logging.error(
+                'Ошибка в файле конфигурации: не указаны идентификаторы чатов '
+                + f'Telegram для секции [{section_name}]. '
+                + 'Работа программы завершается.')
+            sys.exit()
+
+if not TELEGRAM_CHAT_IDS:
+    logging.error('Ошибка в файле конфигурации: необходимо настроить аккаунты '
+                  'Instagram и каналы Telegram. Работа программы завершается.')
+    sys.exit()
+
+# Названия аккаунтов пользователей Instagram для мониторинга
+INSTAGRAM_USER_NAMES = list(TELEGRAM_CHAT_IDS.keys())
 
 # Логин владельца аккаунта Instagram
 LOGIN = parser.get('credentials', 'login', fallback=None)
