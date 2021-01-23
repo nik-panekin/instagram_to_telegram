@@ -1648,6 +1648,11 @@ def execute(maximum=MEDIA_LIMIT, latest=True):
         'cookiejar': COOKIEJAR,
         'media_types': ['image', 'video', 'broadcast'],
         'template': '{shortcode}.{urlname}',
+
+        'proxies': {
+            'http': 'http://51.210.150.171:3128',
+            'https': 'http://51.210.150.171:3128',
+        },
     }
 
     scraper = InstagramScraper(**args)
