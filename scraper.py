@@ -1649,10 +1649,12 @@ def execute(maximum=MEDIA_LIMIT, latest=True):
         'media_types': ['image', 'video', 'broadcast'],
         'template': '{shortcode}.{urlname}',
 
-        'proxies': {
-            'http': 'http://51.210.150.171:3128',
-            'https': 'http://51.210.150.171:3128',
-        },
+        # 'proxies': {
+        #     'http': 'http://53.210.150.171:3128',
+        #     'https': 'http://53.210.150.171:3128',
+        # },
+        'proxies': '{"https": "https://162.144.34.109:3838"}',
+
     }
 
     scraper = InstagramScraper(**args)
