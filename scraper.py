@@ -35,7 +35,8 @@ import tqdm
 
 from constants import *
 from config_loader import (TEMP_FOLDER, INSTAGRAM_USER_NAMES, LOGIN, PASSWORD,
-                           MANUAL_AUTH, MEDIA_LIMIT, COOKIEJAR)
+                           MANUAL_AUTH, MEDIA_LIMIT, COOKIEJAR, USE_PROXY)
+import proxy_finder
 
 try:
     reload(sys)  # Python 2.7
@@ -1649,13 +1650,16 @@ def execute(maximum=MEDIA_LIMIT, latest=True):
         'media_types': ['image', 'video', 'broadcast'],
         'template': '{shortcode}.{urlname}',
 
-        # 'proxies': {
-        #     'http': 'http://53.210.150.171:3128',
-        #     'https': 'http://53.210.150.171:3128',
-        # },
-        'proxies': '{"https": "https://162.144.34.109:3838"}',
-
+        # Пример подключения прокси:
+        # 'proxies': '{"https": "https://162.144.34.109:3838"}',
     }
+
+    if USE_PROXY:
+        proxy = proxy_finder.get_proxy()
+        if proxy:
+            args['proxies'] = f'{{"https": "{proxy}"}}'
+        else:
+            logging.warning('Не удалось получить доступ к прокси-серверу.')
 
     scraper = InstagramScraper(**args)
 

@@ -133,6 +133,13 @@ if INCLUDE_LINK.strip().lower() in ['true', '1']:
 else:
     INCLUDE_LINK = False
 
+# Использовать ли прокси-сервер свободного доступа для скрейпинга Instgram
+USE_PROXY = parser.get('general', 'use_proxy', fallback='')
+if USE_PROXY.strip().lower() in ['true', '1']:
+    USE_PROXY = True
+else:
+    USE_PROXY = False
+
 # Максимальное количество единиц медиа для каждого аккаунта Instagram,
 # извлекаемое за один цикл работы скрипта
 MEDIA_LIMIT = parser.get('general', 'limit', fallback='')
