@@ -21,7 +21,10 @@ def parse_proxies() -> list:
 
         for col in cols:
             try:
-                if col[4] == 'elite proxy' and col[6] == 'yes':
+                # if col[4] == 'elite proxy' and col[6] == 'yes':
+                #     proxies.append('https://' + col[0] + ':' + col[1])
+
+                if col[4] == 'anonymous' and col[6] == 'yes':
                     proxies.append('https://' + col[0] + ':' + col[1])
             except Exception as e:
                 logging.warning(f'Парсинг {FREE_PROXY_HOST}: не удалось '
