@@ -1655,7 +1655,7 @@ def execute(maximum=MEDIA_LIMIT, latest=True):
     }
 
     if USE_PROXY:
-        proxy = proxy_finder.get_proxy()
+        proxy = proxy_finder.get_random_proxy()
         if proxy:
             args['proxies'] = f'{{"https": "{proxy}"}}'
         else:

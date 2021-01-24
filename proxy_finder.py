@@ -1,4 +1,5 @@
 import logging
+from random import choice
 
 import requests
 from bs4 import BeautifulSoup
@@ -6,6 +7,7 @@ from bs4 import BeautifulSoup
 FREE_PROXY_HOST = 'https://free-proxy-list.net'
 HTTP_BIN_HOST = 'https://httpbin.org/ip'
 TIMEOUT = 5
+RANDOM_TRIES = 20
 
 def parse_proxies() -> list:
     proxies = []
@@ -29,24 +31,43 @@ def parse_proxies() -> list:
 
     return proxies
 
-def get_valid_proxy(proxies: list) -> str:
-    for proxy in proxies:
+def proxy_is_valid(proxy: str) -> bool:
+    try:
+        res = requests.get(HTTP_BIN_HOST, proxies={'https': proxy},
+                           timeout=TIMEOUT)
+    except Exception as e:
+        logging.warning(f'Ошибка доступа к прокси {proxy}. ' + str(e))
+    else:
         try:
-            res = requests.get(HTTP_BIN_HOST, proxies={'https': proxy},
-                               timeout=TIMEOUT)
+            ip = res.json()['origin']
         except Exception as e:
-            logging.warning(f'Ошибка доступа к прокси {proxy}. ' + str(e))
+            logging.warning(f'Ошибка доступа через прокси {proxy}: получен'
+                            ' некорректый ответ. ' + str(e))
         else:
-            try:
-                ip = res.json()['origin']
-            except Exception as e:
-                logging.warning(f'Ошибка доступа через прокси {proxy}: получен'
-                                ' некорректый ответ. ' + str(e))
-            else:
-                logging.info(f'Получен доступ через прокси. IP-адрес: {ip}.')
-                return proxy
+            logging.info(f'Получен доступ через прокси. IP-адрес: {ip}.')
+            return True
+
+    return False
+
+def get_random_proxy() -> str:
+    proxies = parse_proxies()
+    if not proxies:
+        return False
+
+    for i in range(0, RANDOM_TRIES):
+        proxy = choice(proxies)
+        if proxy_is_valid(proxy):
+            return proxy
 
     return False
 
 def get_proxy() -> str:
-    return get_valid_proxy(parse_proxies())
+    proxies = parse_proxies()
+    if not proxies:
+        return False
+
+    for proxy in proxies:
+        if proxy_is_valid(proxy):
+            return proxy
+
+    return False
