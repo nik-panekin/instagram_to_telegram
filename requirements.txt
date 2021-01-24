@@ -12,3 +12,4 @@ proglog==0.1.9
 pyTelegramBotAPI==3.7.6
 requests==2.25.1
 tqdm==4.56.0
+beautifulsoup4==4.9.3
