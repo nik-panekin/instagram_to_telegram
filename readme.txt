@@ -37,3 +37,7 @@
     python bot.py --singlerun
 
 Все необходимые зависимости для установки перечислены в файле requirements.txt.
+
+Значительная часть исходного кода была скопирована из репозитория проекта
+instagram-scraper, автором которого является Ричард Аркега (Richard Arcega):
+    https://github.com/arc298/instagram-scraper
